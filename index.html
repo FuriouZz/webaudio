@@ -9,7 +9,71 @@
     <link rel="stylesheet" href="./assets/styles/main.css">
   </head>
   <body>
+    <div id="main">
+      <h1>Web Audio API</h1>
+
+      <div id="wrapper">
+        <div id="buffer-source-example" class="example hidden">
+          <h2>Buffer Source</h2>
+          <canvas></canvas>
+        </div>
+        <div id="audio-element-example" class="example hidden">
+          <h2>Audio Element</h2>
+          <canvas></canvas>
+        </div>
+        <div id="audio-stream-example" class="example hidden">
+          <h2>Audio Stream</h2>
+          <canvas></canvas>
+        </div>
+        <div id="spatial-example" class="example hidden">
+          <h2>Spatial</h2>
+          <canvas></canvas>
+        </div>
+        <div id="filter-example" class="example hidden">
+          <h2>Filter</h2>
+          <canvas></canvas>
+        </div>
+      </div>
+    </div>
     <script type="text/javascript" src="./assets/scripts/vendor.js"></script>
-    <script type="text/javascript" src="./assets/scripts/main.js"></script>
+    <script type="text/javascript">
+      window.addEventListener('DOMContentLoaded', function() {
+
+        var EXAMPLES = [
+          "audio-element",
+          "buffer-source",
+          "audio-stream",
+          "spatial",
+          "filter"
+        ]
+
+        var html = ''
+
+        for (var i in EXAMPLES) {
+          html += '<a href="'+window.location.origin+'?'+EXAMPLES[i]+'">'
+          html += EXAMPLES[i]
+          html += '</a>'
+        }
+
+        var select = document.createElement('div')
+        select.id = 'example-selector'
+        select.innerHTML = html
+        select.addEventListener('change', function() {
+          window.location.href = window.location.origin + '?' + this.value
+        })
+
+        document.body.appendChild(select)
+
+        var key = window.location.search.replace('?', '')
+        if (EXAMPLES.indexOf(key) !== -1) {
+          document.querySelector('#'+key+'-example').classList.remove('hidden')
+          var script = document.createElement('script')
+          script.src = './assets/scripts/examples/'+key+'.js'
+          script.async = false
+          document.body.appendChild(script)
+        }
+
+      })
+    </script>
   </body>
 </html>

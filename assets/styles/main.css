@@ -1,3 +1,73 @@
+html, body {
+  background-color: #4343a7;
+  font-family: Arial;
+  color: #1c1c69;
+  text-align: center
+}
+
 canvas {
-  outline: 1px rgba(255, 0, 0, 0.25) solid
+  outline: 1px #4343a7 solid;
+}
+
+audio {
+  display: block;
+  margin: auto;
+  opacity: 0.1;
+  transition: opacity 0.5s;
+}
+
+audio:hover {
+  opacity: 1;
+}
+
+#example-selector {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 10px;
+  margin: auto;
+}
+
+#example-selector a {
+  font-size: 12px;
+  margin: 0 2px;
+  color: #1c1c69;
+  font-weight: bold;
+}
+
+#main, #wrapper {
+  width: 100%;
+  height: 100%;
+}
+
+#main {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+}
+
+#wrapper {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+#wrapper:before {
+  content: "";
+  display: inline-block;
+  height: 100%;
+  vertical-align: middle;
+  margin-left: -0.25em;
+}
+
+.example {
+  display: inline-block;
+  max-width: 500px;
+  vertical-align: middle;
+}
+
+.example.hidden {
+  display: none;
 }

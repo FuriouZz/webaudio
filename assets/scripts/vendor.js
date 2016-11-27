@@ -41,6 +41,7 @@ window._ = {
         resolve(mediaElement)
       }
       mediaElement.onerror = function(e) {
+        console.log(arguments)
         reject(e)
       }
     })
@@ -65,17 +66,18 @@ window._ = {
     })
   },
 
-  createCanvas: function() {
+  createCanvas: function($el) {
     var paused = true
     var ptime  = 0
     var delta  = 0
 
-    var $canvas = document.createElement( 'canvas' )
-    var context = $canvas.getContext( '2d' )
+    $el = typeof $el === 'string' ? document.querySelector($el) : $el
+    var $canvas = $el || document.createElement( 'canvas' )
+    var ctx = $canvas.getContext( '2d' )
 
     var xport = {
       $canvas: $canvas,
-      context: context,
+      context: ctx,
 
       onrender: null,
 
@@ -87,6 +89,14 @@ window._ = {
       stop: function() {
         paused = true
         window.cancelAnimationFrame(render)
+      },
+
+      setSize: function(width, height, scale) {
+        scale = scale || 1
+        $canvas.width        = width * scale
+        $canvas.height       = height * scale
+        $canvas.style.width  = width+'px'
+        $canvas.style.height = height+'px'
       }
     }
 
@@ -97,8 +107,8 @@ window._ = {
       delta = time - ptime
       ptime = time
 
-      context.setTransform(1, 0, 0, 1, 0, 0)
-      context.clearRect(0, 0, $canvas.width, $canvas.height)
+      ctx.setTransform(1, 0, 0, 1, 0, 0)
+      ctx.clearRect(0, 0, $canvas.width, $canvas.height)
 
       if (xport.onrender) xport.onrender(delta, time)
     }
@@ -106,15 +116,12 @@ window._ = {
     return xport
   },
 
-  createEqualizer: function(size, updateFrequency, smooth, mirror) {
+  createEqualizer: function($el, size, updateFrequency, smooth, mirror) {
     var time = 0
     var frequencies    = new Float32Array(size)
     var newFrequencies = new Float32Array(size)
-    var canvas = _.createCanvas()
-    canvas.$canvas.className = 'equalizer'
-    canvas.$canvas.width     = size - 1
-    canvas.$canvas.height    = 100
-    document.body.appendChild(canvas.$canvas)
+    var canvas = _.createCanvas($el)
+    canvas.setSize(size - 1, 100, window.devicePixelRatio)
 
     canvas.onrender = function(delta) {
       time += delta
@@ -124,7 +131,9 @@ window._ = {
         newFrequencies = xport.data.slice(0)
       }
 
-      canvas.context.fillStyle = 'red'
+      canvas.context.save()
+
+      canvas.context.fillStyle = 'black'
 
       for (var i = 0, len = frequencies.length; i < len; i++) {
         frequencies[i] += (newFrequencies[i] - frequencies[i]) * smooth
@@ -134,62 +143,34 @@ window._ = {
         canvas.context.fillRect(i * 2, 0, 1, frequencies[i] * 100)
         canvas.context.setTransform(1, 0, 0, 1, 0, 0)
       }
+
+      canvas.context.globalCompositeOperation = 'source-in'
+
+      var gradient = canvas.context.createLinearGradient(0, 0, canvas.$canvas.width, 0)
+      gradient.addColorStop(0, '#9fe705')
+      gradient.addColorStop(xport.cursor, '#9fe705')
+      gradient.addColorStop(xport.cursor, '#1c1c69')
+      gradient.addColorStop(1, '#1c1c69')
+
+      canvas.context.fillStyle = gradient
+      canvas.context.fillRect(0, 0, canvas.$canvas.width, canvas.$canvas.height)
+
+
+      canvas.context.restore()
+
+
     }
 
     var xport = {
       canvas: canvas,
       start: canvas.start.bind(canvas),
       stop: canvas.stop.bind(canvas),
-      data: new Float32Array(size)
+      data: new Float32Array(size),
+      cursor: 0
     }
 
     return xport
 
-  },
-
-  createSpatialCanvas: function(panner, listener) {
-    var canvas = _.createCanvas()
-    canvas.$canvas.className = 'spatial'
-    canvas.$canvas.width  = 400
-    canvas.$canvas.height = 400
-    document.body.appendChild(canvas.$canvas)
-
-    var boundingRect = { top: 0, left: 0 }
-    var mouse        = [200, 200]
-    var size         = 10
-
-    canvas.onrender = function() {
-      var ctx = canvas.context
-
-      listener.setPosition(mouse[0], mouse[1], 0)
-      panner.setPosition(200, 200, 0)
-
-      ctx.fillStyle = 'green'
-      ctx.translate(200, 200)
-      ctx.arc(0, 0, 5, 0, Math.PI * 2)
-      ctx.fill()
-
-      ctx.fillStyle = 'red'
-      ctx.setTransform(1, 0, 0, 1, mouse[0], mouse[1])
-      ctx.fillRect(size * -0.5, size * -0.5, size, size)
-    }
-
-    canvas.$canvas.addEventListener('mouseenter', function() {
-      boundingRect = canvas.$canvas.getBoundingClientRect()
-    })
-
-    canvas.$canvas.addEventListener('mousemove', function(e) {
-      mouse[0] = e.clientX - boundingRect.left
-      mouse[1] = e.clientY - boundingRect.top
-    })
-
-    var xport = {
-      canvas: canvas,
-      start: canvas.start.bind(canvas),
-      stop: canvas.stop.bind(canvas)
-    }
-
-    return xport
   }
 
 }
