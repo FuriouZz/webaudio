@@ -121,7 +121,12 @@ window._ = {
     var frequencies    = new Float32Array(size)
     var newFrequencies = new Float32Array(size)
     var canvas = _.createCanvas($el)
+    canvas.$canvas.style.cursor = 'pointer'
     canvas.setSize(size - 1, 100, window.devicePixelRatio)
+
+    var mouse   = [0, 0]
+    var box     = {}
+    var pressed = false
 
     canvas.onrender = function(delta) {
       time += delta
@@ -157,8 +162,30 @@ window._ = {
 
 
       canvas.context.restore()
+    }
 
+    canvas.$canvas.addEventListener('mousedown', function(e) {
+      pressed = true
+      box = canvas.$canvas.getBoundingClientRect()
+      setCursor(e)
+      if (xport.onmousedown) xport.onmousedown()
+    })
 
+    canvas.$canvas.addEventListener('mousemove', function(e) {
+      if (!pressed) return
+      setCursor(e)
+      if (xport.onmousemove) xport.onmousemove()
+    })
+
+    canvas.$canvas.addEventListener('mouseup', function(e) {
+      if (!pressed) return
+      pressed = false
+      setCursor(e)
+      if (xport.onmouseup) xport.onmouseup()
+    })
+
+    var setCursor = function(e) {
+      xport.cursor = (e.clientX - box.left) / canvas.$canvas.width
     }
 
     var xport = {
