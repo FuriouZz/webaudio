@@ -17,7 +17,7 @@
   $notify.style.cssText = 'font-size: 12px; text-transform: uppercase; font-weight: bold; color: #1c1c69'
   $el.appendChild($notify)
 
-  _.createAudioBuffer('./assets/audio/looking-glass.wav').then(function(arrayBuffer) {
+  _.createAudioBuffer('./assets/audio/walk.wav').then(function(arrayBuffer) {
     ctx.decodeAudioData(arrayBuffer, function(buf) {
       buffer = buf
     }, function() {
