@@ -11,7 +11,7 @@
   var size      = 256
   var equalizer = _.createEqualizer($canvas, size, 100, 0.1, true)
 
-  var bufferSource, buffer, gain, playbackRate = 1
+  var bufferSource, buffer, gain, convolverGain, playbackRate = 1, convolverNormalize = 0
 
   var $notify = document.createElement('div')
   $notify.style.cssText = 'font-size: 12px; text-transform: uppercase; font-weight: bold; color: #1c1c69'
@@ -128,7 +128,8 @@
      *
      * INPUT -> Gain -> ANALYSER (only fetch input data) -> OUTPUT
      */
-    bufferSource.connect(gain)
+    bufferSource
+                .connect(gain)
                 .connect(analyser)
                 .connect(processor)
                 .connect(ctx.destination)
@@ -138,14 +139,20 @@
      *
      * INPUT -> Gain -> OUTPUT
      */
-    bufferSource.connect(gain)
+    bufferSource
+                .connect(convolver)
+                .connect(gain)
                 .connect(ctx.destination)
+  }
+
+  var connectConvolver = function() {
+
   }
 
   var listeners = function() {
 
     var inputsArray = [
-      'play', 'resume', 'pause', 'stop', 'volume', 'playbackRate'
+      'play', 'resume', 'pause', 'stop', 'volume', 'playbackRate', 'reverb'
     ]
 
     var inputs = {}
@@ -215,6 +222,7 @@
       time = 0
       bufferSource.stop(0)
       bufferSource.disconnect(0)
+      convolver.disconnect(0)
       bufferSource = null
     }
 
@@ -264,6 +272,30 @@
         label.appendChild(document.createElement('br'))
         label.appendChild(input)
         input = label
+      } else if (inputsArray[i] === 'reverb') {
+        var convolverElement = document.createElement('span')
+
+        input       = document.createElement('input')
+        input.type  = 'range'
+        input.value = 1
+        input.min   = 0
+        input.max   = 1
+        input.step  = 0.01
+        input.addEventListener('mousemove', function() {
+          if (convolver) {
+            console.log(convolver.normalize)
+            // convolver.normalize.value = convolverNormalize
+            // gain.normalize.value = parseFloat(this.value)
+            convolverElement.innerHTML = this.value
+          }
+        })
+
+        var label = document.createElement('label')
+        label.innerHTML = '<br>Reverb: '
+        label.appendChild(convolverElement)
+        label.appendChild(document.createElement('br'))
+        label.appendChild(input)
+        input = label
       } else if (inputsArray[i] === 'playbackRate') {
         var playbackRateElement = document.createElement('span')
 
@@ -277,6 +309,7 @@
         input.addEventListener('mousemove', function() {
           if (bufferSource) {
             var value = parseFloat(this.value)
+
             if (value < 0) {
               value = 1 - Math.abs(value)
             } else {
