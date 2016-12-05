@@ -38,6 +38,7 @@
     var $div = document.createElement('div')
 
     var span = document.createElement('span')
+    span.innerHTML = value
 
     var input   = document.createElement('input')
     input.value = name
