@@ -343,6 +343,14 @@
 
     /**
      *
+     * http://codepen.io/andremichelle/pen/RNwamZ?css-preprocessor=sass
+     *
+     * How to hack an equalizer with two biquad filters
+     * 1. Extract the low frequencies (highshelf)
+     * 2. Extract the high frequencies (lowshelf)
+     * 3. Subtract low and high frequencies (add invert) from the source for the mid frequencies.
+     * 4. Add everything back together
+     *
      *                 SOURCE
      *                   |
      *     ——————————————|—————————————
@@ -362,19 +370,21 @@
      *              DESTINATION
      *
      */
+    var gainDB = -40.0
+    var bandSplit = [360, 3600]
 
     this.hBand = ctx.createBiquadFilter()
     this.hBand.type = 'lowshelf'
-    this.hBand.frequency.value = 360
-    this.hBand.gain.value = -40.0
+    this.hBand.frequency.value = bandSplit[0]
+    this.hBand.gain.value = gainDB
 
     this.hInvert = ctx.createGain()
     this.hInvert.gain.value = -1.0
 
     this.lBand = ctx.createBiquadFilter()
     this.lBand.type = 'highshelf'
-    this.lBand.frequency.value = 3600
-    this.lBand.gain.value = -40.0
+    this.lBand.frequency.value = bandSplit[1]
+    this.lBand.gain.value = gainDB
 
     this.lInvert = ctx.createGain()
     this.lInvert.gain.value = -1.0
@@ -392,11 +402,8 @@
     this.lInvert.connect(this.mBand)
 
     this.hGain = ctx.createGain()
-    this.hGain.gain.value = 1
     this.mGain = ctx.createGain()
-    this.mGain.gain.value = 1
     this.lGain = ctx.createGain()
-    this.lGain.gain.value = 1
 
     this.hBand.connect(this.hGain)
     this.mBand.connect(this.mGain)
