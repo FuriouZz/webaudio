@@ -19,7 +19,10 @@
 
     _volume: 1,
     _reverb: 0,
-    _playbackRate: 1
+    _playbackRate: 1,
+    _hGain: 1,
+    _mGain: 1,
+    _lGain: 1
   }
 
   function createButton(name, callback) {
@@ -134,6 +137,24 @@
       }
     })
 
+    ui.lGainSlider = createSlider('EQ Low Gain', 1, [ 0, 1 ], 0.001, function(value) {
+      if (sound.lGain) {
+        sound.EQGains(sound._hGain, sound._mGain, value)
+      }
+    })
+
+    ui.mGainSlider = createSlider('EQ Medium Gain', 1, [ 0, 1 ], 0.001, function(value) {
+      if (sound.mGain) {
+        sound.EQGains(sound._hGain, value, sound._lGain)
+      }
+    })
+
+    ui.hGainSlider = createSlider('EQ High Gain', 1, [ 0, 1 ], 0.001, function(value) {
+      if (sound.hGain) {
+        sound.EQGains(value, sound._mGain, sound._lGain)
+      }
+    })
+
     ui.fileReaderInput = createFileReader('sound file', function(result) {
       sound.load(result)
     })
@@ -156,6 +177,10 @@
     $el.appendChild(ui.reverbSlider)
     $el.appendChild(ui.fileReaderInput)
     $el.appendChild(ui.reverbFileReaderInput)
+
+    $el.appendChild(ui.lGainSlider)
+    $el.appendChild(ui.mGainSlider)
+    $el.appendChild(ui.hGainSlider)
   }
 
   function setup() {
@@ -214,7 +239,7 @@
     var scope = this
     ctx.decodeAudioData(arraybuffer, function(buf) {
       scope.buffer = buf
-      alert('Ready to play')
+      alert('[Sound] Ready to play')
       // notify('[!!] Ready to play')
     }, function(err) {
       console.log('Oh oh! Something failed :(')
@@ -226,7 +251,7 @@
     var scope = this
     ctx.decodeAudioData(arraybuffer, function(buf) {
       scope.reverbbuffer = buf
-      alert('Ready to play')
+      alert('[Reverb] Ready to play')
       // notify('[!!] Ready to play')
     }, function(err) {
       console.log('Oh oh! Something failed :(')
@@ -235,7 +260,7 @@
   }
 
 
-  sound.connectMaster = function() {
+  sound.prepareMaster = function() {
     /**
      * Create buffer source
      */
@@ -282,23 +307,22 @@
      * Compressor
      */
     this.compressor = ctx.createDynamicsCompressor()
-
-    /**
-     * Connects
-     */
-    this.source
-    .connect(this.gain)
-    .connect(this.analyser)
-    .connect(this.processor)
-    .connect(ctx.destination)
-
-    this.source
-    .connect(this.gain)
-    .connect(this.compressor)
-    .connect(ctx.destination)
   }
 
   sound.connectReverb = function() {
+
+    /**
+     *
+     *    ConvolverGain
+     *          |
+     *       Convolver
+     *          |
+     *        Gain
+     *          |
+     *     DESTINATION
+     *
+     */
+
     this.convolver = ctx.createConvolver()
     this.convolver.buffer = this.reverbbuffer
     this.convolver.normalize = true
@@ -314,13 +338,117 @@
     this.source.connect(this.convolverGain)
   }
 
-  sound.connect = function() {
-    this.connectMaster()
-    this.connectReverb()
+  sound.connectEqualizer = function() {
 
+    /**
+     *
+     *                 SOURCE
+     *                   |
+     *     ——————————————|—————————————
+     *     |             |            |
+     *     |             |            |
+     *   hBand –––—      |      –––— lBand
+     *     |      |      |      |     |
+     *     |   hInvert   |   lInvert  |
+     *     |      |      |      |     |
+     *     |      ———— mBand ——––     |
+     *     |             |            |
+     *   hGain         mGain        lGain
+     *     |             |            |
+     *     |             |            |
+     *     ———————————  Gain  —————————
+     *                   |
+     *              DESTINATION
+     *
+     */
+
+    this.hBand = ctx.createBiquadFilter()
+    this.hBand.type = 'lowshelf'
+    this.hBand.frequency.value = 360
+    this.hBand.gain.value = -40.0
+
+    this.hInvert = ctx.createGain()
+    this.hInvert.gain.value = -1.0
+
+    this.lBand = ctx.createBiquadFilter()
+    this.lBand.type = 'highshelf'
+    this.lBand.frequency.value = 3600
+    this.lBand.gain.value = -40.0
+
+    this.lInvert = ctx.createGain()
+    this.lInvert.gain.value = -1.0
+
+    this.mBand = ctx.createBiquadFilter()
+
+    this.source.connect(this.lBand)
+    this.source.connect(this.mBand)
+    this.source.connect(this.hBand)
+
+    this.hBand.connect(this.hInvert)
+    this.lBand.connect(this.lInvert)
+
+    this.hInvert.connect(this.mBand)
+    this.lInvert.connect(this.mBand)
+
+    this.hGain = ctx.createGain()
+    this.hGain.gain.value = 1
+    this.mGain = ctx.createGain()
+    this.mGain.gain.value = 1
+    this.lGain = ctx.createGain()
+    this.lGain.gain.value = 1
+
+    this.hBand.connect(this.hGain)
+    this.mBand.connect(this.mGain)
+    this.lBand.connect(this.lGain)
+
+    this.hGain.connect(this.gain)
+    this.mGain.connect(this.gain)
+    this.lGain.connect(this.gain)
+  }
+
+  sound.connect = function() {
+    this.prepareMaster()
+    this.connectReverb()
+    this.connectEqualizer()
+
+    /**
+     *
+     *       Gain
+     *         |
+     *     Compressor
+     *         |
+     *     DESTINATION
+     *
+     */
+    this.gain
+    .connect(this.compressor)
+    .connect(ctx.destination)
+
+    /**
+     * Analysis
+     *
+     *     Compressor
+     *         |
+     *      Analyser
+     *         |
+     *     Processor
+     *         |
+     *     DESTINATION
+     *
+     */
+    this.compressor
+    .connect(this.analyser)
+    .connect(this.processor)
+    .connect(ctx.destination)
+
+    /**
+     * Set previous values
+     */
     this.volume(this._volume)
     this.reverb(this._reverb)
     this.playbackRate(this._playbackRate)
+
+    this.EQGains(this._hGain, this._mGain, this._lGain)
   }
 
   sound.disconnect = function() {
@@ -399,392 +527,15 @@
     this._playbackRate = value
   }
 
+  sound.EQGains = function(hGain, mGain, lGain) {
+    this.hGain.gain.value = hGain
+    this.mGain.gain.value = mGain
+    this.lGain.gain.value = lGain
+    this._hGain = hGain
+    this._mGain = mGain
+    this._lGain = lGain
+  }
+
   setup()
-
-
-
-
-
-    // /**
-    //  * Play
-    //  */
-    // function play() {
-    //   if (!buffer) return
-    //   if (playing) return
-    //   playing = true
-
-    //   connect()
-    //   time = 0
-    //   startTime = bufferSource.context.currentTime
-    //   bufferSource.startTime = startTime
-    //   bufferSource.start(bufferSource.context.currentTime, time)
-    // }
-
-
-    // /**
-    //  * Resume
-    //  */
-    // function resume() {
-    //   if (!buffer) return
-    //   if (playing) return
-    //   playing = true
-
-    //   connect()
-    //   startTime = bufferSource.context.currentTime - time
-    //   bufferSource.startTime = startTime
-    //   bufferSource.start(bufferSource.context.currentTime, time)
-    // }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-  // var bufferSource, buffer, gain, convolverGain, playbackRate = 1, convolverNormalize = 0
-
-  // var $notify = document.createElement('div')
-  // $notify.style.cssText = 'font-size: 12px; text-transform: uppercase; font-weight: bold; color: #1c1c69'
-  // $el.appendChild($notify)
-
-  // _.createAudioBuffer('./assets/audio/walk.wav').then(function(arrayBuffer) {
-  //   ctx.decodeAudioData(arrayBuffer, function(buf) {
-  //     buffer = buf
-  //   }, function() {
-  //     console.log('Oh oh! Decoding failed :(')
-  //   })
-  // }).catch(function(err) {
-  //   console.log('Oh oh! Something failed :(')
-  //   throw err
-  // })
-
-  // var setup = function() {
-
-  //   // Make connection
-  //   listeners()
-
-  //   // Start equalizer
-  //   equalizer.start()
-
-  //   // Update cursor
-  //   function update() {
-  //     window.requestAnimationFrame(update)
-  //     if (bufferSource && bufferSource.buffer) {
-  //       equalizer.cursor = bufferSource.currentTime / bufferSource.buffer.duration
-  //     }
-  //   }
-
-  //   update()
-
-  //   // File upload
-  //   var reader = new FileReader
-  //   var input  = document.createElement('input')
-  //   input.type = "file"
-  //   input.name = "files[]"
-  //   input.setAttribute('multiple', true)
-  //   input.addEventListener('change', function(e) {
-  //     reader.onload = function(e) {
-  //       ctx.decodeAudioData(reader.result, function(buf) {
-  //         buffer = buf
-  //         notify('[!!] Ready to play')
-  //       }, function(err) {
-  //         console.log('Oh oh! Something failed :(')
-  //         throw err
-  //       })
-  //     }
-  //     reader.readAsArrayBuffer(e.currentTarget.files[0])
-  //   })
-  //   $el.appendChild(input)
-
-  // }
-
-  // var notify = function(message) {
-  //   $notify.innerHTML = message
-  //   setTimeout(function() {
-  //     $notify.innerHTML = ''
-  //   }, 2000)
-  // }
-
-  // var connect = function() {
-  //   bufferSource = ctx.createBufferSource()
-  //   bufferSource.buffer = buffer
-  //   bufferSource.startTime = bufferSource.context.currentTime
-  //   bufferSource.currentTime = 0
-  //   bufferSource.playbackRate.value = playbackRate
-
-  //   /**
-  //    * Create a analyser node
-  //    * [MDN] It is an AudioNode that passes the audio stream unchanged from the input to the output,
-  //    * but allows you to take the generated data, process it, and create audio visualizations.
-  //    */
-  //   var analyser = ctx.createAnalyser()
-  //   analyser.smoothingTimeConstant = 0.8
-  //   analyser.fftSize = size
-
-  //   /**
-  //    * A script processing is an interface used for direct audio processing.
-  //    *
-  //    * @param {Number} bufferSize
-  //    * Must be a power of 2 value : 256, 512, 1024, 2048, 4096, 8192, 16384.
-  //    * This value controls how frequently the audioprocess event is dispatched
-  //    * and how many sample-frames need to be processed each call.
-  //    * Lower is the value better is the latency.
-  //    *
-  //    * @param {Number} numberInputChannel
-  //    * @param {Number} numberOutputChannel
-  //    */
-  //   var processor = ctx.createScriptProcessor(1024, 1, 1)
-  //   processor.onaudioprocess = function() {
-  //     if (!bufferSource) {
-  //       processor.onaudioprocess = null
-  //       processor.disconnect(0)
-  //       analyser.disconnect(0)
-  //       return
-  //     }
-
-  //     bufferSource.currentTime = bufferSource.context.currentTime - bufferSource.startTime
-  //     bufferSource.currentTime = Math.min(bufferSource.currentTime, bufferSource.buffer.duration)
-  //     analyser.getFloatTimeDomainData(equalizer.data)
-  //   }
-
-
-  //   /**
-  //    * Volume node
-  //    */
-  //   gain = ctx.createGain()
-
-  //   /**
-  //    * Analyse data from source
-  //    *
-  //    * INPUT -> Gain -> ANALYSER (only fetch input data) -> OUTPUT
-  //    */
-  //   bufferSource
-  //               .connect(gain)
-  //               .connect(analyser)
-  //               .connect(processor)
-  //               .connect(ctx.destination)
-
-  //   /**
-  //    * Get sound
-  //    *
-  //    * INPUT -> Gain -> OUTPUT
-  //    */
-  //   bufferSource
-  //               .connect(convolver)
-  //               .connect(gain)
-  //               .connect(ctx.destination)
-  // }
-
-  // var connectConvolver = function() {
-
-  // }
-
-  // var listeners = function() {
-
-  //   var inputsArray = [
-  //     'play', 'resume', 'pause', 'stop', 'volume', 'playbackRate', 'reverb'
-  //   ]
-
-  //   var inputs = {}
-
-  //   var startTime    = 0
-  //   var time         = 0
-  //   var playing      = false
-
-  //   var $div = document.createElement('div')
-  //   $el.appendChild($div)
-
-
-  //   /**
-  //    * Play
-  //    */
-  //   function play() {
-  //     if (!buffer) return
-  //     if (playing) return
-  //     playing = true
-
-  //     connect()
-  //     time = 0
-  //     startTime = bufferSource.context.currentTime
-  //     bufferSource.startTime = startTime
-  //     bufferSource.start(bufferSource.context.currentTime, time)
-  //   }
-
-
-  //   /**
-  //    * Resume
-  //    */
-  //   function resume() {
-  //     if (!buffer) return
-  //     if (playing) return
-  //     playing = true
-
-  //     connect()
-  //     startTime = bufferSource.context.currentTime - time
-  //     bufferSource.startTime = startTime
-  //     bufferSource.start(bufferSource.context.currentTime, time)
-  //   }
-
-
-  //   /**
-  //    * Pause
-  //    */
-  //   function pause() {
-  //     if (!buffer) return
-  //     if (!playing) return
-  //     playing = false
-
-  //     time = bufferSource.context.currentTime - startTime
-  //     bufferSource.stop(0)
-  //     bufferSource.disconnect(0)
-  //     bufferSource = null
-  //   }
-
-
-  //   /**
-  //    * Stop
-  //    */
-  //   function stop() {
-  //     if (!buffer) return
-  //     if (!playing) return
-  //     playing = false
-
-  //     time = 0
-  //     bufferSource.stop(0)
-  //     bufferSource.disconnect(0)
-  //     convolver.disconnect(0)
-  //     bufferSource = null
-  //   }
-
-  //   function seek() {
-  //     equalizer.onmousedown = function() {
-  //       pause()
-  //       time = equalizer.cursor * buffer.duration
-  //     }
-
-  //     equalizer.onmousemove = function() {
-  //       time = equalizer.cursor * buffer.duration
-  //     }
-
-  //     equalizer.onmouseup = function() {
-  //       resume()
-  //     }
-  //   }
-
-  //   seek()
-
-  //   /**
-  //    * Setup
-  //    */
-  //   var input
-
-  //   for (var i = 0; i < inputsArray.length; i++) {
-
-  //     if (inputsArray[i] === 'volume') {
-  //       var volumeElement = document.createElement('span')
-
-  //       input       = document.createElement('input')
-  //       input.type  = 'range'
-  //       input.value = 1
-  //       input.min   = 0
-  //       input.max   = 1
-  //       input.step  = 0.01
-  //       input.addEventListener('mousemove', function() {
-  //         if (gain) {
-  //           gain.gain.value = parseFloat(this.value)
-  //           volumeElement.innerHTML = this.value
-  //         }
-  //       })
-
-  //       var label = document.createElement('label')
-  //       label.innerHTML = '<br>Volume: '
-  //       label.appendChild(volumeElement)
-  //       label.appendChild(document.createElement('br'))
-  //       label.appendChild(input)
-  //       input = label
-  //     } else if (inputsArray[i] === 'reverb') {
-  //       var convolverElement = document.createElement('span')
-
-  //       input       = document.createElement('input')
-  //       input.type  = 'range'
-  //       input.value = 1
-  //       input.min   = 0
-  //       input.max   = 1
-  //       input.step  = 0.01
-  //       input.addEventListener('mousemove', function() {
-  //         if (convolver) {
-  //           console.log(convolver.normalize)
-  //           // convolver.normalize.value = convolverNormalize
-  //           // gain.normalize.value = parseFloat(this.value)
-  //           convolverElement.innerHTML = this.value
-  //         }
-  //       })
-
-  //       var label = document.createElement('label')
-  //       label.innerHTML = '<br>Reverb: '
-  //       label.appendChild(convolverElement)
-  //       label.appendChild(document.createElement('br'))
-  //       label.appendChild(input)
-  //       input = label
-  //     } else if (inputsArray[i] === 'playbackRate') {
-  //       var playbackRateElement = document.createElement('span')
-
-  //       input       = document.createElement('input')
-  //       input.type  = 'range'
-  //       input.value = 0
-  //       input.min   = -1
-  //       input.max   = 1
-  //       input.step  = 0.001
-  //       input.style.width = '500px'
-  //       input.addEventListener('mousemove', function() {
-  //         if (bufferSource) {
-  //           var value = parseFloat(this.value)
-
-  //           if (value < 0) {
-  //             value = 1 - Math.abs(value)
-  //           } else {
-  //             value = 1 + value * 10
-  //           }
-
-  //           playbackRate = value
-  //           bufferSource.playbackRate.value = value
-  //           playbackRateElement.innerHTML = value
-  //         }
-  //       })
-
-  //       var label = document.createElement('label')
-  //       label.innerHTML = '<br>Playback Rate (between 0.01 and 10, default: 1): '
-  //       label.appendChild(playbackRateElement)
-  //       label.appendChild(document.createElement('br'))
-  //       label.appendChild(input)
-  //       input = label
-  //     } else {
-  //       input       = document.createElement('input')
-  //       input.type  = 'button'
-  //       input.value = inputsArray[i]
-
-  //       input.addEventListener('click', function() {
-  //         if      (this.value === 'play'  ) { play()   }
-  //         else if (this.value === 'resume') { resume() }
-  //         else if (this.value === 'pause' ) { pause()  }
-  //         else                              { stop()   }
-  //       })
-  //     }
-
-  //     $div.appendChild(input)
-  //   }
-
-  // }
-
-  // setup()
 
 })()
