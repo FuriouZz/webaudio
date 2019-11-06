@@ -1,0 +1,22 @@
+{
+  "name": "webaudioapi",
+  "version": "1.0.0",
+  "description": "Some test and prototype about WebAudio API",
+  "main": "index.js",
+  "scripts": {
+    "start": "wk start"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/FuriouZz/webaudio.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/FuriouZz/webaudio/issues"
+  },
+  "homepage": "https://github.com/FuriouZz/webaudio#readme",
+  "dependencies": {
+    "wk": "github:wk-js/command"
+  }
+}

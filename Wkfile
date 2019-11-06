@@ -1,3 +1,0 @@
-'use strict'
-
-command('start', 'python -m SimpleHTTPServer 9000')

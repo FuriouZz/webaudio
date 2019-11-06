@@ -117,7 +117,6 @@
       analyser.getFloatTimeDomainData(equalizer.data)
     }
 
-
     /**
      * Volume node
      */
@@ -140,7 +139,6 @@
      * INPUT -> Gain -> OUTPUT
      */
     bufferSource
-                .connect(convolver)
                 .connect(gain)
                 .connect(ctx.destination)
   }
@@ -222,7 +220,6 @@
       time = 0
       bufferSource.stop(0)
       bufferSource.disconnect(0)
-      convolver.disconnect(0)
       bufferSource = null
     }
 
@@ -281,14 +278,6 @@
         input.min   = 0
         input.max   = 1
         input.step  = 0.01
-        input.addEventListener('mousemove', function() {
-          if (convolver) {
-            console.log(convolver.normalize)
-            // convolver.normalize.value = convolverNormalize
-            // gain.normalize.value = parseFloat(this.value)
-            convolverElement.innerHTML = this.value
-          }
-        })
 
         var label = document.createElement('label')
         label.innerHTML = '<br>Reverb: '
@@ -318,7 +307,7 @@
 
             playbackRate = value
             bufferSource.playbackRate.value = value
-            playbackRateElement.innerHTML = value
+            playbackRateElement.innerHTML = parseInt(value * 100) / 100
           }
         })
 

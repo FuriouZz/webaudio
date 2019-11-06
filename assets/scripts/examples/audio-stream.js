@@ -13,7 +13,7 @@ var equalizer = _.createEqualizer($canvas, size, 100, 0.1, true)
 
 var mediaStream
 
-_.createAudioStream({ video: false, audio: true }).then(function(ms, url) {
+_.createAudioStream({ video: false, audio: true }).then(function(ms) {
   mediaStream = ms
   connect()
   equalizer.start()

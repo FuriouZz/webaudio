@@ -48,22 +48,7 @@ window._ = {
   },
 
   createAudioStream: function(options) {
-    return new Promise(function(resolve, reject) {
-      navigator.getUserMedia(
-        options,
-
-        // On success
-        function(mediaStream) {
-          window.URL = window.URL || window.webkitURL
-          resolve(mediaStream, URL.createObjectURL(mediaStream))
-        },
-
-        // On fail
-        function() {
-          reject()
-        }
-      )
-    })
+    return navigator.mediaDevices.getUserMedia(options)
   },
 
   createCanvas: function($el) {
